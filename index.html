@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docker vs Podman | Contenedores, orquestación y práctica diagnóstica</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reset.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/black.min.css" id="theme" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/monokai.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --r-background-color: #071f3d;
+      --r-main-font: 'Inter', sans-serif;
+      --r-main-font-size: 29px;
+      --r-main-color: #eef7ff;
+      --r-heading-font: 'Inter', sans-serif;
+      --r-heading-color: #5ee0ff;
+      --r-heading-text-transform: none;
+      --r-link-color: #ffd60a;
+      --r-link-color-hover: #fff176;
+      --accent: #ffd60a;
+      --cyan: #5ee0ff;
+      --blue: #0a4c8a;
+      --green: #7ee787;
+      --red: #ff7b72;
+      --muted: #a7c7e7;
+      --panel: rgba(255,255,255,.08);
+      --panel2: rgba(94,224,255,.10);
+    }
+
+    body { background: radial-gradient(circle at 20% 10%, #0f4c81 0, #071f3d 38%, #031426 100%); }
+    .reveal { font-family: var(--r-main-font); }
+    .reveal h1, .reveal h2, .reveal h3 { font-weight: 800; letter-spacing: -0.035em; text-shadow: 0 6px 25px rgba(0,0,0,.35); }
+    .reveal h1 { font-size: 2.25em; }
+    .reveal h2 { font-size: 1.75em; }
+    .reveal h3 { font-size: 1.22em; color: #bff5ff; }
+    .reveal p, .reveal li { color: #eef7ff; line-height: 1.28; }
+    .reveal small { color: var(--muted); }
+    .reveal strong { color: #fff; font-weight: 800; }
+    .highlight { color: var(--accent); font-weight: 800; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--green); font-weight: 800; }
+    .warn { color: var(--red); font-weight: 800; }
+
+    .logos { display: flex; justify-content: center; align-items: center; gap: 54px; margin: 12px 0 24px; }
+    .logos img { width: 150px !important; height: 150px !important; object-fit: contain; background: #fff; border-radius: 26px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+    .subtitle { font-size: .82em; color: #d8f3ff; margin-top: -12px; }
+
+    .tagline { display: inline-block; background: rgba(255,214,10,.14); color: #fff; padding: 10px 18px; border: 1px solid rgba(255,214,10,.45); border-radius: 999px; font-size: .58em; font-weight: 700; }
+    .box { background: var(--panel); border: 1px solid rgba(255,255,255,.12); border-left: 7px solid var(--cyan); padding: 18px 22px; text-align: left; margin: 16px 0; border-radius: 0 18px 18px 0; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
+    .box h4 { color: #bff5ff; margin: 0 0 8px; font-size: .82em; }
+    .box p, .box li { font-size: .72em; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; align-items: stretch; }
+    .card { background: var(--panel); border: 1px solid rgba(255,255,255,.13); border-radius: 20px; padding: 20px; text-align: left; box-shadow: 0 14px 38px rgba(0,0,0,.22); }
+    .card h4 { margin: 0 0 8px; color: #bff5ff; font-size: .82em; }
+    .card p, .card li { font-size: .66em; }
+    .card .num { font-size: 1.35em; color: var(--accent); font-weight: 800; }
+
+    .comparison-table { width: 100%; border-collapse: collapse; font-size: .52em; margin-top: 14px; background: rgba(255,255,255,.05); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,.28); }
+    .comparison-table th, .comparison-table td { border: 1px solid rgba(255,255,255,.16); padding: 11px 12px; text-align: left; vertical-align: top; }
+    .comparison-table th { background-color: rgba(94,224,255,.20); color: #c4f7ff; font-weight: 800; }
+    .comparison-table td:first-child { color: var(--accent); font-weight: 800; }
+
+    .reveal pre { width: 100%; box-shadow: 0 15px 45px rgba(0,0,0,.45); border-radius: 16px; margin: 14px auto; }
+    .reveal pre code { font-size: .63em; line-height: 1.25em; border-radius: 16px; padding: 17px; max-height: 560px; }
+    code { color: #fff; background: rgba(255,255,255,.12); border-radius: 6px; padding: 1px 6px; }
+
+    .flow { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:22px; }
+    .step { background: rgba(94,224,255,.13); border: 1px solid rgba(94,224,255,.35); border-radius: 16px; padding: 14px 16px; font-size: .60em; font-weight: 700; min-width: 110px; }
+    .arrow { color: var(--accent); font-size: 1.3em; }
+    .sources li { font-size: .55em; margin-bottom: 8px; }
+    .compact li { font-size: .64em; margin: 4px 0; }
+    .mini { font-size: .58em !important; }
+    .two-col-list { columns: 2; column-gap: 36px; text-align: left; }
+    .two-col-list li { break-inside: avoid; font-size: .58em; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <section>
+      <div class="logos">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original-wordmark.svg" alt="Docker logo" />
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/podman/podman-original.svg" alt="Podman logo" />
+      </div>
+      <h1>Docker vs Podman</h1>
+      <p class="subtitle">Contenedores, buenas prácticas, orquestación y diagnóstico práctico</p>
+      <span class="tagline">Asignatura: Microservicios, despliegue y operación</span>
+    </section>
+
+    <section>
+      <h2>Resultado de aprendizaje</h2>
+      <div class="box">
+        <p>Al finalizar la sesión, el estudiante diferencia Docker y Podman, construye una imagen, ejecuta contenedores, conecta servicios con Compose y explica cómo estos conceptos preparan el camino hacia Kubernetes.</p>
+      </div>
+      <div class="grid-3">
+        <div class="card"><div class="num">1</div><h4>Comprender</h4><p>Imagen, contenedor, red, volumen, registry y runtime.</p></div>
+        <div class="card"><div class="num">2</div><h4>Construir</h4><p>Dockerfile/Containerfile con buenas prácticas y multi-stage build.</p></div>
+        <div class="card"><div class="num">3</div><h4>Operar</h4><p>Compose, logs, variables, persistencia, health checks y diagnóstico.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Agenda de la clase</h2>
+      <ol class="compact">
+        <li>¿Qué problema resuelven los contenedores?</li>
+        <li>Docker y Podman: arquitectura y diferencias.</li>
+        <li>Imágenes, Dockerfile, multi-stage build y buenas prácticas.</li>
+        <li>Redes, volúmenes y variables de entorno.</li>
+        <li>Docker Compose y Podman Compose.</li>
+        <li>Puente hacia Kubernetes.</li>
+        <li>Trabajo diagnóstico práctico.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Antes de Docker o Podman</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>El problema</h4>
+          <ul>
+            <li>“En mi máquina sí funciona”.</li>
+            <li>Diferencias de versiones entre ambientes.</li>
+            <li>Instalaciones manuales difíciles de replicar.</li>
+            <li>Conflictos entre dependencias.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>La solución</h4>
+          <ul>
+            <li>Empaquetar app + dependencias.</li>
+            <li>Ambientes reproducibles.</li>
+            <li>Ejecución aislada.</li>
+            <li>Despliegues más consistentes.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Contenedor ≠ Máquina virtual</h2>
+      <table class="comparison-table">
+        <tr><th>Aspecto</th><th>Máquina virtual</th><th>Contenedor</th></tr>
+        <tr><td>Aislamiento</td><td>Emula hardware y ejecuta un sistema operativo completo.</td><td>Comparte el kernel del host y aísla procesos.</td></tr>
+        <tr><td>Inicio</td><td>Más lento.</td><td>Muy rápido.</td></tr>
+        <tr><td>Tamaño</td><td>Generalmente pesado.</td><td>Más liviano.</td></tr>
+        <tr><td>Uso típico</td><td>Infraestructura, laboratorios completos, SO distintos.</td><td>Aplicaciones, microservicios, pipelines y despliegues.</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Conceptos base</h2>
+      <div class="grid-3">
+        <div class="card"><h4>Imagen</h4><p>Plantilla inmutable con sistema de archivos, dependencias y comando de arranque.</p></div>
+        <div class="card"><h4>Contenedor</h4><p>Proceso aislado creado a partir de una imagen.</p></div>
+        <div class="card"><h4>Registry</h4><p>Repositorio donde se publican y descargan imágenes.</p></div>
+        <div class="card"><h4>Volumen</h4><p>Persistencia de datos fuera del ciclo de vida del contenedor.</p></div>
+        <div class="card"><h4>Red</h4><p>Comunicación controlada entre contenedores y con el exterior.</p></div>
+        <div class="card"><h4>Runtime</h4><p>Componente que ejecuta el contenedor según estándares como OCI.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>OCI: el estándar común</h2>
+      <div class="box">
+        <p>Docker y Podman se apoyan en estándares de la <span class="highlight">Open Container Initiative</span>, que define especificaciones abiertas para formatos de imagen y runtimes de contenedores.</p>
+      </div>
+      <div class="flow">
+        <div class="step">Dockerfile</div><div class="arrow">→</div>
+        <div class="step">Imagen OCI</div><div class="arrow">→</div>
+        <div class="step">Runtime</div><div class="arrow">→</div>
+        <div class="step">Contenedor</div>
+      </div>
+      <small>Idea clave: se busca interoperabilidad entre herramientas del ecosistema de contenedores.</small>
+    </section>
+
+    <section>
+      <h2>Docker: arquitectura</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Cómo trabaja</h4>
+          <ul>
+            <li>Cliente <code>docker</code>.</li>
+            <li>Daemon <code>dockerd</code>.</li>
+            <li>Imágenes y contenedores gestionados por el motor.</li>
+            <li>Integración fuerte con Docker Desktop y Docker Compose.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Fortalezas</h4>
+          <ul>
+            <li>Ecosistema muy amplio.</li>
+            <li>Documentación y comunidad maduras.</li>
+            <li>Excelente para iniciar en contenedores.</li>
+            <li>Soporte robusto para Compose.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Podman: arquitectura</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Cómo trabaja</h4>
+          <ul>
+            <li>Modelo <span class="highlight">daemonless</span>.</li>
+            <li>Ejecución rootless como caso de uso importante.</li>
+            <li>CLI muy similar a Docker.</li>
+            <li>Soporte nativo para pods.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Fortalezas</h4>
+          <ul>
+            <li>Menor dependencia de un daemon central.</li>
+            <li>Buen enfoque de seguridad local.</li>
+            <li>Integración con systemd en Linux.</li>
+            <li>Puente interesante hacia Kubernetes.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Docker vs Podman</h2>
+      <table class="comparison-table">
+        <tr><th>Criterio</th><th>Docker</th><th>Podman</th></tr>
+        <tr><td>Arquitectura</td><td>Cliente-servidor con daemon.</td><td>Daemonless; procesos gestionados por usuario.</td></tr>
+        <tr><td>Rootless</td><td>Disponible, pero no siempre es el flujo por defecto.</td><td>Parte central de su propuesta.</td></tr>
+        <tr><td>Compose</td><td>Muy maduro y ampliamente usado.</td><td>Compatible mediante Podman Compose o Docker API socket.</td></tr>
+        <tr><td>Pods</td><td>No es su abstracción principal.</td><td>Soporte nativo para pods.</td></tr>
+        <tr><td>Uso docente</td><td>Ideal para iniciar y por disponibilidad de recursos.</td><td>Ideal para discutir seguridad, rootless y Kubernetes.</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>¿Cuál usar?</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Usar Docker cuando...</h4>
+          <ul>
+            <li>El equipo apenas inicia.</li>
+            <li>Se necesita compatibilidad amplia con tutoriales.</li>
+            <li>Se usa mucho Docker Desktop.</li>
+            <li>Se requiere Compose sin fricción.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Usar Podman cuando...</h4>
+          <ul>
+            <li>Se quiere trabajar rootless.</li>
+            <li>Se prioriza seguridad local.</li>
+            <li>Se trabaja en Linux empresarial.</li>
+            <li>Se quiere acercar el flujo a pods/Kubernetes.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="mini"><span class="highlight">Decisión de curso:</span> Docker como base; Podman como alternativa profesional y puente conceptual.</p>
+    </section>
+
+    <section>
+      <h2>Instalación</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Docker</h4>
+          <pre><code class="language-bash" data-trim># Windows/macOS
+# Instalar Docker Desktop
+
+# Linux Ubuntu/Debian
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER</code></pre>
+        </div>
+        <div class="card">
+          <h4>Podman</h4>
+          <pre><code class="language-bash" data-trim># macOS
+brew install podman podman-desktop
+
+# Windows
+winget install -e --id RedHat.Podman-Desktop
+
+# Ubuntu/Debian
+sudo apt-get install podman</code></pre>
+        </div>
+      </div>
+      <small>Recomendación: validar instalación con <code>docker version</code>, <code>docker compose version</code>, <code>podman version</code>.</small>
+    </section>
+
+    <section>
+      <h2>Comandos básicos</h2>
+      <table class="comparison-table">
+        <tr><th>Acción</th><th>Docker</th><th>Podman</th></tr>
+        <tr><td>Descargar imagen</td><td><code>docker pull nginx</code></td><td><code>podman pull nginx</code></td></tr>
+        <tr><td>Ejecutar</td><td><code>docker run -d -p 8080:80 nginx</code></td><td><code>podman run -d -p 8080:80 nginx</code></td></tr>
+        <tr><td>Listar</td><td><code>docker ps -a</code></td><td><code>podman ps -a</code></td></tr>
+        <tr><td>Logs</td><td><code>docker logs &lt;id&gt;</code></td><td><code>podman logs &lt;id&gt;</code></td></tr>
+        <tr><td>Entrar</td><td><code>docker exec -it &lt;id&gt; sh</code></td><td><code>podman exec -it &lt;id&gt; sh</code></td></tr>
+        <tr><td>Eliminar</td><td><code>docker rm -f &lt;id&gt;</code></td><td><code>podman rm -f &lt;id&gt;</code></td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Dockerfile / Containerfile</h2>
+      <div class="box">
+        <p>Un Dockerfile es un documento de texto con instrucciones para construir una imagen. En Podman suele llamarse también <code>Containerfile</code>, aunque puede usar Dockerfile sin problema.</p>
+      </div>
+      <pre><code class="language-dockerfile" data-trim># Etapa de construcción
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Etapa de ejecución
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+EXPOSE 3000
+CMD ["node", "dist/index.js"]</code></pre>
+    </section>
+
+    <section>
+      <h2>Buenas prácticas de imagen</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Recomendado</h4>
+          <ul>
+            <li>Usar imágenes base pequeñas y oficiales.</li>
+            <li>Aplicar multi-stage build.</li>
+            <li>Copiar primero archivos de dependencias.</li>
+            <li>Usar <code>.dockerignore</code>.</li>
+            <li>No subir secretos a la imagen.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Evitar</h4>
+          <ul>
+            <li>Ejecutar como root si no es necesario.</li>
+            <li>Instalar herramientas innecesarias.</li>
+            <li>Usar etiqueta <code>latest</code> sin control.</li>
+            <li>Guardar datos dentro del contenedor.</li>
+            <li>Mezclar build y runtime sin necesidad.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Redes y volúmenes</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Redes</h4>
+          <ul>
+            <li>Permiten comunicación entre servicios.</li>
+            <li>En Compose, los servicios se resuelven por nombre.</li>
+            <li>Evitan publicar todos los puertos al host.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Volúmenes</h4>
+          <ul>
+            <li>Persisten datos aunque el contenedor se elimine.</li>
+            <li>Clave para bases de datos.</li>
+            <li>Separan aplicación de estado.</li>
+          </ul>
+        </div>
+      </div>
+      <pre><code class="language-bash" data-trim>docker network create app-net
+docker volume create pgdata
+docker run -d --name postgres --network app-net -v pgdata:/var/lib/postgresql/data postgres:16</code></pre>
+    </section>
+
+    <section>
+      <h2>Compose: varios servicios</h2>
+      <pre><code class="language-yaml" data-trim>services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: appdb
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:</code></pre>
+    </section>
+
+    <section>
+      <h2>Health checks</h2>
+      <div class="box">
+        <p>Un contenedor puede estar “corriendo”, pero la aplicación no necesariamente está lista. Por eso se recomienda exponer endpoints como <code>/health</code> y <code>/ready</code>.</p>
+      </div>
+      <pre><code class="language-dockerfile" data-trim>HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1</code></pre>
+    </section>
+
+    <section>
+      <h2>Seguridad mínima</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Contenedores</h4>
+          <ul>
+            <li>No ejecutar procesos como root si no es necesario.</li>
+            <li>No montar el socket de Docker sin justificación.</li>
+            <li>Usar imágenes oficiales o verificadas.</li>
+            <li>Actualizar dependencias e imágenes base.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Aplicaciones</h4>
+          <ul>
+            <li>Variables de entorno para configuración.</li>
+            <li>Secretos fuera del repositorio.</li>
+            <li>Logs sin contraseñas ni tokens.</li>
+            <li>Separar ambiente de desarrollo y producción.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Puente hacia Kubernetes</h2>
+      <div class="box">
+        <p>Kubernetes usa <span class="highlight">Pods</span> como unidad mínima desplegable. Un Pod puede contener uno o más contenedores que comparten red y almacenamiento.</p>
+      </div>
+      <div class="flow">
+        <div class="step">Imagen</div><div class="arrow">→</div>
+        <div class="step">Contenedor</div><div class="arrow">→</div>
+        <div class="step">Pod</div><div class="arrow">→</div>
+        <div class="step">Deployment</div><div class="arrow">→</div>
+        <div class="step">Service</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Podman y Kubernetes YAML</h2>
+      <div class="box">
+        <p>Podman permite ejecutar definiciones Kubernetes localmente con <code>podman kube play</code>. Esto lo convierte en una herramienta útil para enseñar la transición entre contenedores locales y orquestación.</p>
+      </div>
+      <pre><code class="language-bash" data-trim># Generar YAML desde un pod local
+podman generate kube mi-pod > pod.yaml
+
+# Ejecutar YAML estilo Kubernetes
+podman kube play pod.yaml</code></pre>
+    </section>
+
+    <section>
+      <h2>Ejemplo práctico: API mínima</h2>
+      <pre><code class="language-typescript" data-trim>import express from "express";
+
+const app = express();
+app.use(express.json());
+
+const items = [{ id: 1, name: "Item 1" }];
+
+app.get("/health", (_, res) => res.json({ status: "ok" }));
+app.get("/items", (_, res) => res.json(items));
+app.post("/items", (req, res) => {
+  const item = { id: items.length + 1, name: req.body.name };
+  items.push(item);
+  res.status(201).json(item);
+});
+
+app.listen(3000, () => console.log("API running on 3000"));</code></pre>
+    </section>
+
+    <section>
+      <h2>Trabajo diagnóstico práctico</h2>
+      <div class="box">
+        <p>Construir una API con <code>/health</code>, <code>/items</code> y <code>POST /items</code>, empaquetarla en una imagen, ejecutarla con Docker o Podman y levantarla junto a PostgreSQL usando Compose.</p>
+      </div>
+      <div class="grid-3">
+        <div class="card"><h4>Entregable 1</h4><p>Repositorio con API funcional, Dockerfile y README.</p></div>
+        <div class="card"><h4>Entregable 2</h4><p><code>compose.yml</code> con API, base de datos, red y volumen.</p></div>
+        <div class="card"><h4>Entregable 3</h4><p>Evidencias de build, ejecución, logs y pruebas de endpoints.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Rúbrica diagnóstica</h2>
+      <table class="comparison-table">
+        <tr><th>Criterio</th><th>Puntos</th><th>Evidencia</th></tr>
+        <tr><td>API funcional</td><td>20</td><td>Endpoints probados.</td></tr>
+        <tr><td>Dockerfile/Containerfile</td><td>20</td><td>Imagen construida correctamente.</td></tr>
+        <tr><td>Ejecución en contenedor</td><td>15</td><td>Puertos, logs y contenedor activo.</td></tr>
+        <tr><td>Compose con DB</td><td>20</td><td>API + PostgreSQL conectados.</td></tr>
+        <tr><td>Red, volumen y variables</td><td>15</td><td>Persistencia y configuración externa.</td></tr>
+        <tr><td>Documentación</td><td>10</td><td>README claro con comandos.</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Errores comunes</h2>
+      <ul class="compact">
+        <li>Usar <code>localhost</code> para conectar la API con la base de datos dentro de Compose.</li>
+        <li>Olvidar exponer o mapear el puerto correcto.</li>
+        <li>Guardar datos importantes dentro del contenedor y no en volúmenes.</li>
+        <li>Subir contraseñas reales al repositorio.</li>
+        <li>Construir imágenes enormes por no usar <code>.dockerignore</code>.</li>
+        <li>No revisar logs antes de decir “Docker no funciona”.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Temas de exposición sugeridos</h2>
+      <ol class="two-col-list">
+        <li>Diseño de APIs REST y buenas prácticas.</li>
+        <li>Códigos de estado HTTP.</li>
+        <li>Autenticación, autorización, JWT, roles y permisos.</li>
+        <li>Seguridad en APIs y manejo de secretos.</li>
+        <li>Idempotencia en APIs.</li>
+        <li>Monolito, monolito modular y microservicios.</li>
+        <li>Comunicación síncrona entre microservicios.</li>
+        <li>Comunicación asíncrona con RabbitMQ.</li>
+        <li>Kafka y arquitectura orientada a eventos.</li>
+        <li>Docker: imágenes, contenedores, redes y volúmenes.</li>
+        <li>Docker Compose para múltiples servicios.</li>
+        <li>Podman como alternativa a Docker.</li>
+        <li>Kubernetes: Pods, Deployments, Services y ConfigMaps.</li>
+        <li>Pruebas unitarias, integración y end-to-end.</li>
+        <li>Agentes inteligentes: LangChain, LangGraph, RAG, vector DB y MCP.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Cierre</h2>
+      <div class="grid-3">
+        <div class="card"><h4>Docker</h4><p>Excelente punto de entrada, ecosistema maduro y flujo de trabajo ampliamente adoptado.</p></div>
+        <div class="card"><h4>Podman</h4><p>Alternativa moderna, daemonless, orientada a rootless y con buen puente hacia Kubernetes.</p></div>
+        <div class="card"><h4>Curso</h4><p>Usar Docker para la base práctica y Podman para discutir seguridad, compatibilidad y operación profesional.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Fuentes consultadas</h2>
+      <ul class="sources">
+        <li>Docker Docs: Dockerfile reference y multi-stage builds.</li>
+        <li>Podman Docs: podman kube play, Podman Desktop y documentación oficial.</li>
+        <li>Kubernetes Docs: Pods y conceptos básicos de cargas de trabajo.</li>
+        <li>Open Container Initiative: especificaciones abiertas para imágenes y runtimes de contenedores.</li>
+      </ul>
+      <p class="mini">Recomendación para estudiantes: priorizar documentación oficial antes que tutoriales desactualizados.</p>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+  Reveal.initialize({
+    plugins: [ RevealHighlight ],
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    controls: true,
+    progress: true,
+    center: true
+  });
+</script>
+</body>
+</html>
