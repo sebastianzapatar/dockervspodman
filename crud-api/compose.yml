@@ -1,0 +1,25 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: crud-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile    # Cambiar a "Containerfile" si se usa Podman
+    container_name: crud-api
+    ports:
+      - "3000:3000"
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: crud_db
+      PORT: "3000"
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data:
